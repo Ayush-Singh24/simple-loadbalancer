@@ -3,17 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	_, port, err := net.SplitHostPort(r.Host)
-	if err != nil {
-		fmt.Fprintf(w, "Error parsing the host: %v", err)
-	}
-	fmt.Fprintf(w, "Hello from port: %s\n", port)
+	port := os.Args[1]
+	fmt.Fprintf(w, "Hello from Backend Server on port: %s\n", port)
 }
 
 func main() {
