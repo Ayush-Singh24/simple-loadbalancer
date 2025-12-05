@@ -7,26 +7,73 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 )
+
+type Server struct {
+	URL   string
+	Alive bool
+	mux   sync.RWMutex
+}
+
+func (s *Server) SetAlive(alive bool) {
+	s.mux.Lock()
+	s.Alive = alive
+	s.mux.Unlock()
+}
+
+func (s *Server) IsAlive() bool {
+	s.mux.RLock()
+	alive := s.Alive
+	s.mux.RUnlock()
+	return alive
+}
 
 var (
-	servers = []string{
-		"localhost:8000",
-		"localhost:8001",
-		"localhost:8002",
-		"localhost:8003",
+	servers = []*Server{
+		{URL: "localhost:8000", Alive: true},
+		{URL: "localhost:8001", Alive: true},
+		{URL: "localhost:8002", Alive: true},
 	}
-
-	counter uint64 = 0
+	counter uint64
 )
 
-func chooseBackend() string {
-	current := atomic.AddUint64(&counter, 1)
+func healthCheck() {
+	t := time.NewTicker(10 * time.Second)
+
+	for {
+		<-t.C
+		log.Println("Starting server health check...")
+
+		for _, server := range servers {
+			conn, err := net.DialTimeout("tcp", server.URL, 2*time.Second)
+
+			if err != nil {
+				log.Printf("Server %s is down: %v", server.URL, err)
+				server.SetAlive(false)
+			} else {
+				server.SetAlive(true)
+				conn.Close()
+			}
+		}
+		log.Println("Health Check Completed")
+	}
+}
+
+func chooseBackend() *Server {
+	start := atomic.AddUint64(&counter, 1)
 
 	len := uint64(len(servers))
-	index := current % len
-	return servers[index]
+	for i := 0; i < int(len); i++ {
+		index := (start + uint64(i)) % len
+
+		if servers[index].Alive {
+			return servers[index]
+		}
+	}
+	return nil
 }
 
 func proxy(clientConn net.Conn, backendConn net.Conn) {
@@ -56,12 +103,15 @@ func proxy(clientConn net.Conn, backendConn net.Conn) {
 }
 
 func handleConnection(clientConn net.Conn) {
-	backendAddr := chooseBackend()
-	log.Printf("Balancing connection to: %s", backendAddr)
-
-	backendConn, err := net.Dial("tcp", backendAddr)
+	backend := chooseBackend()
+	if backend == nil {
+		log.Printf("Error: All servers are down!")
+		return
+	}
+	log.Printf("Balancing connection to: %s", backend.URL)
+	backendConn, err := net.Dial("tcp", backend.URL)
 	if err != nil {
-		log.Printf("Failed to dial %s : %v", backendAddr, err)
+		log.Printf("Failed to dial %s : %v", backend.URL, err)
 		clientConn.Close()
 		return
 	}
@@ -80,6 +130,8 @@ func main() {
 	fmt.Println("Listening on PORT: ", PORT)
 
 	for {
+		go healthCheck()
+
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Printf("Failed to accept connection: %v\n", err)
