@@ -23,6 +23,8 @@ This project demonstrates core system programming concepts including **Goroutine
 
 The system consists of a main Load Balancer listener and a dynamic Server Pool.
 
+![Architecture](./architecture.png)
+
 
 ## Project Structure
 ```
@@ -81,15 +83,13 @@ Hello from Backend Server on port: 8000
 ```
 
 ### 5. Test Fault Tolerance (Health Checks)
--- Kill the backend running on port 8001 (Ctrl+C).
-
--- Wait 10 seconds (check LB logs for Server localhost:8001 is DOWN).
-
--- Run `curl localhost:8080` again.
+1. Kill the backend running on port 8001 (Ctrl+C).
+2. Wait 10 seconds (check LB logs for Server localhost:8001 is DOWN).
+3. Run `curl localhost:8080` again.
 
 **Result:** You will only see responses from ports 8000 and 8002. The LB automatically skips the dead server.
 
-### 5. Future Improvements
+## Future Improvements
 [ ] Weighted Round Robin: Assign capacity weights to stronger servers.
 
 [ ] Least Connections Algorithm: Route traffic to the server with fewest active connections.
