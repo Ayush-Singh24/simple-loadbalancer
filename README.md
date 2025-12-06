@@ -35,7 +35,7 @@ go-loadbalancer/
 │   └── backend/
 │       └── main.go       # Utility: Dummy backend server for testing
 ├── core/
-│   ├── backend.go        # Struct: Defines Server state (Alive/Dead, URL, Mutex)
+│   ├── server.go        # Struct: Defines Server state (Alive/Dead, URL, Mutex)
 │   └── server_pool.go    # Logic: Round Robin algo & Health Check worker
 ├── go.mod                # Module definitions
 └── README.md
